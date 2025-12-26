@@ -1,0 +1,373 @@
+Script R- Characterization of Simmondsia chinensis seeds: radiographic, digital morphometric, and ultrastructural analyses
+Journal: OCL - Oilseeds and fats, Crops and Lipids
+
+
+# Libraries 
+library(readxl)
+library(agricolae)
+library(effectsize)
+library(effsize)
+library(rstatix)
+
+====================================================================                			
+			Mean comparison tests
+====================================================================
+
+#load data
+Ger_jo <- read_excel("C:\\Users\\USUARIO\\Documents\\Universidade\\Fitotecnia\\Doutorado\\Pesquisa_orientada\\Jojoba\\Jojoba\\Novos_dados\\Data_jojoba_research.xlsx", col_names = T, sheet="Mean")
+Ger_jo
+
+ro_jo<-aov(((Min))~Lote, data=Ger_jo)
+anova(ro_jo)
+
+#### Results ANOVA
+# Variable p-value
+
+# Area= 0.00001367 
+# Perimeter= 0.003165 
+# Width= 0.000274
+# Height= 0.000751
+# Circ= 0.0207
+# Solidity= 1.096e-06
+# Aspec ratio= 2.91e-05
+# Mean= 0.0149
+# IntDen= 0.0000161
+# Mode= 0.003849
+# Min= 0.05974
+# Max= 0.008931
+# Median= 0.0148 
+
+### ANOVA assumptions
+
+# normality resid
+
+shapiro.test(resid(ro_jo))
+
+## normality
+# area= 0.9689
+# Perim= 0.8663
+# Width= 0.9963
+# Height= 0.4717
+# Circ= 0.598
+# Round= 0.1756
+# Solidity= 0.9333
+# Aspec ratio= 0.189
+# mean= 0.7418
+# IntDen= 0.9575
+# Mode= 0.8268
+# Min= 0.9101
+# Max= 0.3293
+# Median= 0.7348
+
+# variance issues 
+bartlett.test(((Min))~Lote, data=Ger_jo)
+
+##  homogeneity of variances
+# Area= 0.0509
+# Perim= 0.6459
+# width= 0.3869
+# height= 0.8301
+# circ= 0.6721
+# Solidity= 0.4244
+# Aspec ratio= 0.08616
+# mean= 0.3574
+# IntDen= 0.050502
+# Mode= 0.1688
+# Min= 0.3209
+# Max= 0.9378
+# Median= 0.32
+# Round= 0.02316** The variance cannot be considered homogeneous.
+## For the roundness variable, parametric tests were performed, including the Kruskal-Wallis test, 
+#  followed by Bonferroni adjustment for multiple comparisons.
+
+
+## Tukey Test
+
+*** Adjust according to the Mean Square Error value.
+tuukey_mean<-print(HSD.test(ro_jo,"Lote",15,10.514 , alpha = 0.05))
+plot(tuukey_mean)
+
+# Tukey HSD with adjusted p-values
+tukey_res <- TukeyHSD(ro_jo, "Lote", alpha = 0.05)
+tukey_res
+#Tabela com p-values ajustados
+tuk_tab <- as.data.frame(tukey_res$Lote)
+tuk_tab
+
+
+# g hedges
+hedges_pares <- cohens_d(
+  data = Ger_jo,
+  formula = Median ~ Lote,
+  comparisons = NULL,  # NULL = todos os pares
+  paired = FALSE,
+  hedges.correction = TRUE,
+  conf.level = 0.95,
+)
+
+print(hedges_pares)
+
+
+## KRUSKAL-WALLIS for roundness
+attach(Ger_jo)
+round_result<-kruskal(Round, Lote, alpha = 0.05, p.adj ="bonferroni")
+round_result
+
+====================================================================
+			PCA
+====================================================================
+library(readxl)
+library('corrr')
+
+library(ggplot2)
+library(ggcorrplot)
+
+
+pca_jojo<-read_excel('C:\\Users\\USUARIO\\Documents\\Universidade\\Fitotecnia\\Doutorado\\Pesquisa_orientada\\Jojoba\\Jojoba\\Novos_dados\\Comp_jojoba _trat.xlsx', col_names=T, sheet = "PCA")
+pca_jojo #observar dados}
+
+library("FactoMineR")
+
+
+
+colSums(is.na(pca_jojo))
+
+dim(pca_jojo)
+
+sapply(pca_jojo, class)
+
+# ----------------------------------------------------
+# KMO E BARTLETT 
+# ----------------------------------------------------
+library(psych)
+
+#Remove 'Batch' column for analysis
+dados_num <- pca_jojo[, -which(names(pca_jojo) == "Lote")]
+dados_num <- na.omit(dados_num)
+
+# Test KMO
+kmo_result <- KMO(dados_num)
+kmo_result
+cat("\n=== KMO Test ===\n")
+cat("KMO Overall:", round(kmo_result$MSA, 3), "\n")
+
+# Test Bartlett
+bartlett_result <- cortest.bartlett(cor(dados_num), n = nrow(dados_num))
+cat("\n=== Bartlett's Test ===\n")
+cat("Chi-square:", round(bartlett_result$chisq, 2), "\n")
+cat("df:", bartlett_result$df, "\n")
+cat("p-value:", format.pval(bartlett_result$p.value, digits = 4), "\n")
+
+#Separating the data matrix without the class column for PCA
+pca_result <- prcomp(pca_jojo[, -which(names(pca_jojo) == "Lote")], scale. = TRUE)
+pca_result
+summary(pca_result)
+
+##figure
+pca_data <- data.frame(pca_result$x)  # Scores dos componentes
+pca_data$Lote <- pca_jojo$Lote  
+##### Figure of the first two components:
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Lote)) +
+  geom_point(size = 3, alpha = 0.8) +
+  labs(title = "PCA dos dados de jojoba",
+       x = paste0("PC1 (", round(summary(pca_result)$importance[2,1]*100, 1), "%)"),
+       y = paste0("PC2 (", round(summary(pca_result)$importance[2,2]*100, 1), "%)")) +
+  theme_minimal()
+
+###
+
+# Cor
+
+cores_personalizadas <- c( "limegreen", "orange","blue","firebrick2","slategrey")
+
+# 
+pca_jojo$Lote <- as.factor(pca_jojo$Lote)  
+formas_personalizadas <- c(16, 16, 16, 16, 16)  
+shapes <- formas_personalizadas[as.numeric(pca_jojo$Lote)]  
+
+# Plot
+PCA_graphic<-ggplot(pca_data, aes(x = PC1, y = PC2, color = Lote, shape = Lote)) +
+  geom_point(size = 5, alpha = 0.8) +
+  stat_ellipse(level = 0.95) +
+  scale_color_manual(values = cores_personalizadas) +
+  scale_shape_manual(values = formas_personalizadas) +
+  labs(title = "PCA",
+       x = paste0("PC1 (", round(summary(pca_result)$importance[2, 1] * 100, 1), "%)"),
+       y = paste0("PC2 (", round(summary(pca_result)$importance[2, 2] * 100, 1), "%)")) +
+  theme_minimal() +
+  theme(text = element_text(size = 12))
+print(PCA_graphic)
+
+##Accessing the components that explain 90% of the total variance.
+
+pca_result$rotation[, 1:5]
+
+#
+library(factoextra)
+
+#View eigenvalues
+
+coto<-fviz_eig(pca_result, addlabels = TRUE, ncp=15)
+coto
+
+# Extracting eigenvalues
+eigenvals <- get_eig(pca_result)
+eigenvals
+
+# Scree plot - figure eigenvalues
+scree_basic <- fviz_eig(pca_result, 
+                        addlabels = TRUE, 
+                        ylim = c(0, 50),  # Ajuste conforme seus dados
+                        main = "Scree Plot - Autovalores",
+                        xlab = "Componentes Principais",
+                        ylab = "Porcentagem de Variância Explicada",
+                        barfill = "steelblue",
+                        barcolor = "steelblue",
+                        linecolor = "red")
+
+print(scree_basic)
+#
+autovalores <- pca_result$sdev^2
+
+# data frame
+autovalores_df <- data.frame(
+  Componente = factor(paste0("PC", 1:length(autovalores)), 
+                      levels = paste0("PC", 1:length(autovalores))),
+  Autovalor = autovalores
+)
+
+#SIMPLE figure- only eigenvalues ​​and cutoff line
+auto<-ggplot(autovalores_df, aes(x = Componente, y = Autovalor, group = 1)) +
+  geom_line(color = "black", size = 0.5) +
+  geom_point(size = 2, color = "black") +
+  geom_hline(yintercept = 1, 
+             linetype = "dashed", 
+             color = "red", 
+             size = 0.5) +
+  geom_text(aes(label = round(Autovalor, 2)), 
+            vjust = -0.8, 
+            size = 3, 
+            fontface = "bold") +
+  labs(title = "Scree plot for component Analysis",
+       x = "PC",
+       y = "Eigenvalue") +
+  theme_minimal(base_size = 12) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+auto
+
+====================================================================
+			DENDOGRAM
+====================================================================
+
+dados2<-read_excel("C:\\Users\\USUARIO\\Documents\\Universidade\\Fitotecnia\\Doutorado\\Pesquisa_orientada\\Jojoba\\Jojoba\\Novos_dados\\Comp_jojoba _trat.xlsx", col_names = T, sheet = "PCA")
+dados2
+
+# Calculate the average PER LOT for each variable.
+library(dplyr)
+
+dados_por_lote <- dados2 %>%
+  group_by(Lote) %>%
+  summarise(across(where(is.numeric), mean, na.rm = TRUE))
+dados_por_lote
+
+# Standardize the variables (excluding the Lot column)
+#Data standardization
+
+job_padro2=apply(dados_por_lote[, -1], 2, function(x) (x-mean(x))/sd(x))
+job_padro2
+
+# Calculate the matrix of distances BETWEEN LOTS
+distancias2 <- dist(job_padro2)
+distancias2
+
+# Generate the BATCH dendrogram
+
+dendograma2 <- hclust(distancias2, method = "average") #average= UPGMA
+dendograma2
+
+library(factoextra)
+#cofenetic correlation
+corre_fenetic2<- cophenetic(dendograma2)
+corre_fenetic2
+#calcular a correlacao
+cor(distancias2,corre_fenetic2)
+
+#height dendrogram
+altura_dendo2 <- dendograma2$height
+altura_dendo2
+
+# Calculate the Mojena cutoff point
+altura_corte_moj2 <- distancias2[which.max(dendograma2$height) - 1]
+altura_corte_moj2
+
+# [1] 4.261954
+# Calcular a altura média e o desvio padrão das alturas (MANTIDO)
+alturas <- dendograma2$height
+alturas
+
+altura_corte_moj4 <- mean(alturas) + 1.25 * sd(alturas)  Adjust the factor as needed. Mojena
+altura_corte_moj4
+#[1] 6.907374
+
+# Determine the number of clusters for batches ( 2 Mojena)
+k_lotes <- 2
+grupos_lotes <- cutree(dendograma2, k = k_lotes)
+
+#  Create batch-group association table
+tabela_grupos <- data.frame(Lote = paste("Lote", 1:5), Grupo = paste("Grupo", grupos_lotes),
+                            Num_Grupo = grupos_lotes)
+print("Agrupamento dos Lotes:")
+print(tabela_grupos)
+
+
+# Dendrogram with extra facts (for batches)
+p2 <- fviz_dend(dendograma2, k = k_lotes, labels_track_height = 0.5, 
+                type = "rectangle", 
+                lwd = 1.5, k_colors = "jco", rect_border = "jco", rect_fill = TRUE,
+                main = "Hierarchical Grouping of Jojoba Lots",
+                xlab = "Lotes",ylab = "Distância",ggtheme = theme_classic())
+
+#
+p2 <- p2 + scale_x_continuous(breaks = 1:5,labels = paste("Lote", 1:5))
+p2
+
+# Add Mojena cutoff line to the LOTE dendrogramS
+p3 <- p2 + geom_hline(yintercept = altura_corte_moj4, linetype = "dashed", 
+                          color = "red",size = 1,alpha = 0.7) +
+  annotate("text", x = 4, y = altura_corte_moj4 + 0.3,
+           label = paste("Corte Mojena =", round(altura_corte_moj4, 2)),
+           color = "black",size = 3)
+
+print(p3)
+=====================================================================================
+				# CODE FOR METRICS
+=====================================================================================
+
+# Silhouette Width
+library(cluster)
+k <- 2  # number of clusters identified
+grupos <- cutree(dendograma2, k = k)
+
+
+# Silhouette
+sil <- silhouette(grupos, distancias2)
+sil
+# Valor médio da silhueta
+mean(sil[, "sil_width"])
+
+plot(sil, main = "Silhouette Width – Lot Grouping")
+
+
+#criterio de DUNN
+library(clusterCrit)
+
+# Dunn's Index
+dunn2 <- intCriteria(
+  as.matrix(job_padro2),
+  grupos,
+  "Dunn"
+)
+dunn2
+dunn2$dunn
